@@ -1,0 +1,9 @@
+.idea
+*.рус
+venv
+media
+*.sqlite3
+locale
+.env
+static
+__pycache__
