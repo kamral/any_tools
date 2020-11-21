@@ -1,16 +1,14 @@
-import environ
-import sys
+import os
+from urllib.parse import urlparse
 
-root = environ.Path(__file__) - 3
-env = environ.Env(DEBUG=(bool, False), )
-environ.Env.read_env()
 
-SECRET_KEY = env('SECRET_KEY')
-DEBUG = env('DEBUG', default=False)
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+PROJECT_ROOT = os.path.abspath(os.path.join(BASE_DIR, '..'))
 
-ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['*'])
+SECRET_KEY = os.environ.get('SECRET_KEY', 'secret_key')
+DEBUG = os.environ.get('DEBUG', True)
 
-sys.path.append(root('applications'))
+ALLOWED_HOSTS = ['*']
 
 # Application definition
 
@@ -45,7 +43,9 @@ ROOT_URLCONF = 'any_tools.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [root('templates'), ],
+        'DIRS': [
+            os.path.join(BASE_DIR, 'templates'),
+        ],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -58,11 +58,47 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'project.wsgi.application'
+WSGI_APPLICATION = 'any_tools.wsgi.application'
+
+
+class DSN(object):
+    def __init__(self, dsn):
+        self._uri = urlparse(dsn)
+
+    def get_django_db_settings(self):
+        return dict(
+            ENGINE=self._guess_engine(),
+            NAME=self.NAME(),
+            USER=self.USER(),
+            PASSWORD=self.PASSWORD(),
+            HOST=self.HOST(),
+            PORT=self.PORT(),
+        )
+
+    def _guess_engine(self):
+        scheme = self._uri.scheme
+
+        if scheme == 'postgres':
+            return 'django.db.backends.postgresql'
+
+    def NAME(self):
+        return self._uri.path.lstrip('/')
+
+    def USER(self):
+        return self._uri.username
+
+    def PASSWORD(self):
+        return self._uri.password
+
+    def HOST(self):
+        return self._uri.hostname
+
+    def PORT(self):
+        return self._uri.port
 
 
 DATABASES = {
-    'default': env.db(),
+    'default': DSN(os.environ.get('DATABASE_URL', '')).get_django_db_settings(),
 }
 
 
@@ -98,19 +134,13 @@ USE_TZ = True
 
 
 # Static files (CSS, JavaScript, Images)
-
 STATIC_URL = '/static/'
-STATIC_ROOT = root('static')
-STATICFILES_DIRS = (
-    root('staticfiles'),
-)
-
-MEDIA_URL = env('MEDIA_URL', default='/media/')
-
-MEDIA_ROOT = root('media')
-
-# REDIS
-CELERY_BROKER_URL = env('BROKER_URL', default='redis://localhost:6379/0')
+STATIC_ROOT = os.path.join(PROJECT_ROOT, 'static')
+STATICFILES_DIRS = [
+    os.path.abspath(os.path.join(PROJECT_ROOT, 'staticfiles')),
+]
+MEDIA_ROOT = os.path.join(PROJECT_ROOT, 'media')
+MEDIA_URL = '/media/'
 
 SWAGGER_SETTINGS = {
    'SECURITY_DEFINITIONS': {

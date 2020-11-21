@@ -1,0 +1,66 @@
+version: '3'
+
+services:
+
+  any_tools_proxy:
+    image: nginx:alpine
+    restart: always
+    volumes:
+    - ./configs/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    - ./static:/opt/app/src/static
+    command: [nginx-debug, '-g', 'daemon off;']
+    ports:
+      - 7000:7000
+    depends_on:
+      - any_tools
+
+  any_tools:
+    image: any_tools:${VERSION:-latest}
+    ports:
+      - 8080:5000
+    environment:
+      SECRET_KEY: secret_key
+      DEBUG: "false"
+      DATABASE_URL: postgres://any_tools:any_tools_db@postgres:5432/any_tools_db
+      MAIL_ADDRESS: kamral010101@gmail.com
+      MAIL_PASSWORD: kamralpasswd
+    volumes:
+      - ./static:/app/static
+    networks:
+      - any_tools_default
+    depends_on:
+      - postgres
+      - migrate
+
+  migrate:
+    image: any_tools:${VERSION:-latest}
+    command: migrate
+    environment:
+      SECRET_KEY: some_key
+      DEBUG: "false"
+      DATABASE_URL: postgres://any_tools:any_tools_db@postgres:5432/any_tools_db
+      MAIL_ADDRESS: kamral010101@gmail.com
+      MAIL_PASSWORD: kamral010101
+
+    networks:
+      - any_tools_default
+
+    depends_on:
+      - postgres
+
+  postgres:
+    image: postgres:latest
+    hostname: postgres
+    environment:
+      POSTGRES_PASSWORD: any_tools_db
+      POSTGRES_USER: any_tools
+      POSTGRES_DB: any_tools_db
+    ports:
+      - 5434:5432
+    networks:
+      - any_tools_default
+
+
+networks:
+  any_tools_default:
+    external: true
